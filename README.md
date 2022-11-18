@@ -15,3 +15,6 @@ On the first run, it will create a database to store the last read indexes for n
 ## Audience
 
 No one. Don't use this.
+
+
+Catch me outside: [https://infosec.exchange/0x00string](https://infosec.exchange/@0x00string#) 
