@@ -1,4 +1,4 @@
-import argparse, urllib.request, sqlite3, datetime, pytz, time, youtube_dl, os.path
+import argparse, urllib.request, sqlite3, datetime, pytz, time, youtube_dl, os.path, json
 from mastodon import Mastodon
 
 '''
