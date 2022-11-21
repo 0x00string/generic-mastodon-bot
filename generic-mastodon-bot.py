@@ -1,13 +1,5 @@
-import argparse, urllib.request, sqlite3, datetime, pytz, time, youtube_dl, os.path, json
+import argparse, urllib.request, sqlite3, datetime, pytz, time, youtube_dl, os.path, json, mastodon
 from mastodon import Mastodon
-
-'''
-lol i barely tested this at all, its basically guarunteed not to work if you start expanding into using a lot of the functionality.
-
-this is a stepping stone.
-i wrote this up last night after a few days of one off scripts and tinkering.
-to get it up to par with the code behind the PreserverB twitter bot, it will need to be swapped over to asyncio and have a bit more functionality added to it.
-'''
 
 LOGLEVEL = 5
 DB_PATH = "./prefs.sqlite3"
@@ -118,6 +110,11 @@ def delTimeline(db, timeline_name):
     finally:
         cur.close()
 
+def dbCheck():
+    if not os.path.isfile(DB_PATH):
+        createDB()
+        log('DB created','info')
+
 # notifications
 
 def getCurrentNotificationsIndex(db):
@@ -132,14 +129,22 @@ def getNotificationsFromIndex(m, index):
 def getNotification(m, not_id):
     return m.notifications(id=not_id)
 
+def processDM(noti):
+    log("%s DMed" % (noti['account']['acct']))
+
 def processFavourite(noti):
     log("%s favorited" % (noti['account']['acct']))
+    print("\\\n%s\n/" % (noti['status']['content']))
 
 def processReblog(noti):
     log("%s boosted" % (noti['account']['acct']))
+    print("\\\n%s\n/" % (noti['status']['content']))
 
 def processMention(noti):
     log("%s mentioned" % (noti['account']['acct']))
+    #if (getPostRepliedTo(noti['status'])):
+    #    print("" % s (), )
+    print("\\\n%s\n/" % (noti['status']['content']))
 
 def processFollow(noti):
     log("%s followed" % (noti['account']['acct']))
@@ -165,6 +170,20 @@ def processNotifications(m, last_read_notification=None):
             log(i['type'], "error")
             log(json.dumps(i, indent=4, sort_keys=False, default=str), "error")
     return last_read_notification
+
+def processNotificationStreaming(notification):
+    if notification['type'] == 'follow':
+        processFollow(notification)
+    elif notification['type'] == 'favourite':
+        processFavourite(notification)
+    elif notification['type'] == 'reblog':
+        processReblog(notification)
+    elif notification['type'] == 'mention':
+        processMention(notification)
+    else:
+        log("not sure what this is", "error")
+        log(notification['type'], "error")
+        log(json.dumps(notification, indent=4, sort_keys=False, default=str), "error")
 
 # posts
 
@@ -214,7 +233,7 @@ def unrollThread(m, post):
     thread.reverse()
     return thread
 
-def getPostRepliedTo(m, post):
+def getPostRepliedTo(post):
     if (len(post['in_reply_to_id']) > 0):
         return post['in_reply_to_id']
     else:
@@ -308,22 +327,66 @@ def download_audio(audio_url):
     with youtube_dl.YoutubeDL(audio_ydl_opts) as ydl:
         ydl.download([audio_test_url])
 
-# main loop, to be replaced by kicking off asyncio
+# websocket streaming
+
+def processAnnouncementReaction(reaction):
+    pass
+
+class StreamListener(mastodon.StreamListener):
+    def on_notification(self, notification):
+        processNotificationStreaming(notification)
+
+    def on_abort(self, err):
+        log(err, 'error')
+
+    def on_conversation(self, conversation):
+        processDM(conversation)
+
+    def on_unknown_event(self, name, event):
+        log("not sure what this is", "error")
+        log(name, "error")
+        log(json.dumps(event, indent=4, sort_keys=False, default=str), "error")
+
+    def handle_heartbeat(self):
+        pass
+        #log('exchanged heartbeats with the server','debug')
+
+    def on_announcement_reaction(self, reaction):
+        processAnnouncementReaction(reaction)
+
+    def on_status_update(self, blah):
+        pass
+
+def startStreaming(m):
+    listener = StreamListener()
+    m.stream_user(listener)
+
+def startStreamingAsync(m):
+    listener = StreamListener()
+    return m.stream_user(listener, run_async=True, reconnect_async=True, reconnect_async_wait_sec=5)
+
+# main loop
 
 def main():
     args = parseArguments()
-    if not os.path.isfile(DB_PATH):
-        createDB()
-        log('DB created','info')
+    dbCheck()
     db = connectDB()
     last_read = getTimelineIndex(db, "notifications")
-    print(last_read)
     m = authenticate(args['url'], args['token'])
-    while True:
-        last_read = processNotifications(m, last_read_notification=last_read)
-        log('last read notification: %s' % (last_read),'info')
-        setTimelineIndex(db, 'notifications', last_read)
+    stream_handle = startStreamingAsync(m)
+    while stream_handle.is_alive():
+        log('checking stream handle is receiving','debug')
+        log('%s' % (stream_handle.is_receiving()),'debug')
+        log('checking last read notification index','debug')
+        n = getNotificationsFromIndex(m, last_read)
+        if len(n) > 0:
+            last_read = getNotificationsFromIndex(m, last_read)[0]['id']
+            log('updating last read notification: %s' % (last_read),'debug')
+            if not last_read:
+                setTimelineIndex(db, 'notifications', last_read)
+        log('sleeping main 5 minutes','debug')
         time.sleep(300)
+    stream_handle.close()
 
 if __name__ == "__main__":
     main()
