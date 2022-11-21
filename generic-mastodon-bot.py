@@ -380,7 +380,7 @@ def main():
         log('checking last read notification index','debug')
         n = getNotificationsFromIndex(m, last_read)
         if len(n) > 0:
-            last_read = getNotificationsFromIndex(m, last_read)[0]['id']
+            last_read = n[0]['id']
             log('updating last read notification: %s' % (last_read),'debug')
             if not last_read:
                 setTimelineIndex(db, 'notifications', last_read)
