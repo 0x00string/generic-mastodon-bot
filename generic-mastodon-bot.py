@@ -382,8 +382,7 @@ def main():
         if len(n) > 0:
             last_read = n[0]['id']
             log('updating last read notification: %s' % (last_read),'debug')
-            if not last_read:
-                setTimelineIndex(db, 'notifications', last_read)
+            setTimelineIndex(db, 'notifications', last_read)
         log('sleeping main 5 minutes','debug')
         time.sleep(300)
     stream_handle.close()
