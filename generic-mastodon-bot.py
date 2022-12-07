@@ -9,6 +9,7 @@ DOWNLOAD_DIRECTORY = "./downloaded/"
 DOWNLOAD_REMOTE_URLS = True
 POSTS_DIRECOTRY = "./posts/"
 MAX_POST_SIZE = 11000
+PJSC_KEY = ""
 
 def parseArguments():
     parser = argparse.ArgumentParser(description='python3 script.py -t <mastodon api token> -u https://mastodon.server')
@@ -390,6 +391,17 @@ def ytdlGetPlaylistUrls(playlist_url):
 def ytdlDownload(url, opts=video_opts):
     with youtube_dl.YoutubeDL(opts) as ydl:
         ydl.download([url])
+
+def phantomJSCloudRender(url_to_render, output_file_path, render_format="png", height=800, width=600, key=PJSC_KEY):
+    b = "https://phantomjscloud.com/api/browser/v2/%s/" % (key)
+    h = {'content-type':'application/json'}
+    p = {"pages":[{"url": url_to_render,"renderType": render_format,"outputAsJson": True,"renderSettings": {"viewport": {"height": height,"width": width}}}]}
+    req = urllib.request.Request(b, json.dumps(p).encode('utf-8'), h)
+    res = urllib.request.urlopen(req)
+    rj = json.loads(res.read())
+    if (str(res.headers['pjsc-content-status-code']) in "200"):
+        with open( "%s.%s" % (output_file_path, render_format), "wb") as rf:
+            rf.write(base64.b64decode(rj['content']['data']))
 
 class StreamListener(mastodon.StreamListener):
     def on_notification(self, notification):
