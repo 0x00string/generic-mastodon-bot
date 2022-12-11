@@ -187,5 +187,6 @@ def main():
         m.status_post(status=post['content'])
         print("Posted %s/%s. Sleeping for %s seconds." % (j, len(todays), INTERPOST_DELAY))
         time.sleep(INTERPOST_DELAY)
+        j += 1
 if __name__ == "__main__":
     main()
