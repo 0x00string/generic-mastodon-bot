@@ -9,6 +9,7 @@ MOST_RECENT_X = 5
 INTERPOST_DELAY = 60
 
 FEED_URLS = [
+    "https://0x434b.dev/rss/",
     "https://feeds.feedburner.com/securityweek",
     "https://www.darkreading.com/rss.xml",
     "http://rss.cnn.com/rss/cnn_topstories.rss",
